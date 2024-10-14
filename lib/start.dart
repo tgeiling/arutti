@@ -101,43 +101,51 @@ class _StartPageState extends State<StartPage> {
                     children: [
                       SizedBox(height: 10),
                       Expanded(
-                        child: ListView.builder(
+                        // Use GridView to make a collage-like gallery layout
+                        child: GridView.builder(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2, // Two images per row
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio:
+                                0.75, // Adjust the ratio as needed
+                          ),
                           itemCount: _imagePaths.length,
                           itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Stack(
-                                children: [
-                                  // Display the image
-                                  Image.file(
+                            return Stack(
+                              children: [
+                                // Display the image in a grid tile
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.file(
                                     File(_imagePaths[index]),
-                                    height: 200,
-                                    width: double.infinity,
                                     fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
                                   ),
-                                  // Positioned delete icon with white background
-                                  Positioned(
-                                    bottom: 10,
-                                    right: 10,
-                                    child: GestureDetector(
-                                      onTap: () => _deleteImage(index),
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.8),
-                                          shape: BoxShape.rectangle,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        padding: EdgeInsets.all(8),
-                                        child: Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                        ),
+                                ),
+                                // Positioned delete icon with white background
+                                Positioned(
+                                  bottom: 10,
+                                  right: 10,
+                                  child: GestureDetector(
+                                    onTap: () => _deleteImage(index),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.8),
+                                        shape: BoxShape.rectangle,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      padding: EdgeInsets.all(8),
+                                      child: Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             );
                           },
                         ),
