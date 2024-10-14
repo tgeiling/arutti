@@ -4,6 +4,7 @@ import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:provider/provider.dart';
 
 import 'provider.dart';
+import 'start.dart';
 
 void main() {
   runApp(
@@ -50,7 +51,7 @@ class _MyHomePageState extends State<MyHomePage> {
           });
         },
         children: [
-          Center(child: Text("Start Page")), // Placeholder for StartPage
+          Center(child: StartPage()), // Placeholder for StartPage
           Center(child: Text("Level Page")), // Placeholder for Level Page
         ],
       ),
