@@ -26,7 +26,7 @@ flutter:
     - assets/logo.jpg
 
   fonts:
-    - family: Roboto
+    - family: Fahkwang
       fonts:
         - asset: fonts/Fahkwang-Regular.ttf
           weight: 700

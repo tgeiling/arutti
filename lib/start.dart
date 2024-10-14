@@ -47,60 +47,105 @@ class _StartPageState extends State<StartPage> {
     }
   }
 
+  // Delete image from the list
+  void _deleteImage(int index) {
+    setState(() {
+      _imagePaths.removeAt(index);
+    });
+    _saveImages();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Scaffold(
-        body: Column(
-          children: [
-            if (_imagePaths.isEmpty)
-              Expanded(
-                child: Center(
-                  child: GestureDetector(
-                    onTap: _pickImages,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add, size: 100),
-                        SizedBox(height: 20),
-                        Text("Erstelle deine Setcard",
-                            style: TextStyle(fontSize: 18)),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            else
-              Expanded(
-                child: Stack(
+      child: Column(
+        children: [
+          if (_imagePaths.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ListView.builder(
-                      itemCount: _imagePaths.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Image.file(
-                            File(_imagePaths[index]),
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        );
-                      },
+                    Text(
+                      "Deine Setcard ist hochgeladen \n bearbeite sie nach belieben",
+                      style: TextStyle(fontSize: 12),
                     ),
-                    Positioned(
-                      top: 16,
-                      right: 16,
-                      child: GestureDetector(
-                        onTap: _pickImages,
-                        child: Icon(Icons.add, size: 50),
-                      ),
+                    SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: _pickImages,
+                      child: Icon(Icons.add, size: 50),
                     ),
                   ],
                 ),
               ),
-          ],
-        ),
+            ),
+          Expanded(
+            child: _imagePaths.isEmpty
+                ? Center(
+                    child: GestureDetector(
+                      onTap: _pickImages,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 100),
+                          SizedBox(height: 20),
+                          Text("Erstelle deine Setcard",
+                              style: TextStyle(fontSize: 18)),
+                        ],
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      SizedBox(height: 10),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _imagePaths.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Stack(
+                                children: [
+                                  // Display the image
+                                  Image.file(
+                                    File(_imagePaths[index]),
+                                    height: 200,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                  // Positioned delete icon with white background
+                                  Positioned(
+                                    bottom: 10,
+                                    right: 10,
+                                    child: GestureDetector(
+                                      onTap: () => _deleteImage(index),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.8),
+                                          shape: BoxShape.rectangle,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        padding: EdgeInsets.all(8),
+                                        child: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
       ),
     );
   }

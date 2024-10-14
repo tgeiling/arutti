@@ -5,13 +5,13 @@ import 'package:provider/provider.dart';
 
 import 'provider.dart';
 import 'start.dart';
+import 'events.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-            create: (context) => UserDataProvider()), // New User Data Provider
+        ChangeNotifierProvider(create: (context) => UserDataProvider()),
       ],
       child: MyApp(),
     ),
@@ -43,6 +43,17 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.jpg',
+              height: 40, // Adjust the height based on your logo size
+            ),
+          ],
+        ),
+        backgroundColor: Colors.white, // Customize the AppBar background color
+      ),
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) {
@@ -51,8 +62,8 @@ class _MyHomePageState extends State<MyHomePage> {
           });
         },
         children: [
-          Center(child: StartPage()), // Placeholder for StartPage
-          Center(child: Text("Level Page")), // Placeholder for Level Page
+          Center(child: StartPage()),
+          Center(child: EventsPage()),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
