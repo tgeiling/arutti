@@ -1,8 +1,9 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class StartPage extends StatefulWidget {
   @override
@@ -44,6 +45,44 @@ class _StartPageState extends State<StartPage> {
         _imagePaths.addAll(pickedFiles.map((file) => file.path).toList());
       });
       _saveImages(); // Save to SharedPreferences
+    }
+  }
+
+  // Send model setcard data to the server
+  Future<void> _saveModelSetcard() async {
+    // Replace with your server URL
+    const String serverUrl = 'http://<INSTANCE_IP>:3000/api/setcards';
+
+    // Prepare the request body
+    List<String> photoPaths = _imagePaths.map((path) => path).toList();
+    Map<String, dynamic> data = {
+      "name": "Model Name", // Replace with dynamic data if needed
+      "age": 25, // Replace with dynamic data if needed
+      "height": 170, // Replace with dynamic data if needed
+      "measurements": {
+        "chest": 90, // Replace with dynamic data if needed
+        "waist": 60, // Replace with dynamic data if needed
+        "hips": 90 // Replace with dynamic data if needed
+      },
+      "photos": photoPaths,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(serverUrl),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(data),
+      );
+
+      if (response.statusCode == 201) {
+        print("Setcard saved successfully.");
+      } else {
+        print("Failed to save setcard: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error saving setcard: $e");
     }
   }
 
@@ -100,22 +139,24 @@ class _StartPageState extends State<StartPage> {
                 : Column(
                     children: [
                       SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: _saveModelSetcard,
+                        child: Text("Save Setcard to DB"),
+                      ),
+                      SizedBox(height: 10),
                       Expanded(
-                        // Use GridView to make a collage-like gallery layout
                         child: GridView.builder(
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2, // Two images per row
+                            crossAxisCount: 2,
                             crossAxisSpacing: 10,
                             mainAxisSpacing: 10,
-                            childAspectRatio:
-                                0.75, // Adjust the ratio as needed
+                            childAspectRatio: 0.75,
                           ),
                           itemCount: _imagePaths.length,
                           itemBuilder: (context, index) {
                             return Stack(
                               children: [
-                                // Display the image in a grid tile
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: Image.file(
@@ -125,7 +166,6 @@ class _StartPageState extends State<StartPage> {
                                     height: double.infinity,
                                   ),
                                 ),
-                                // Positioned delete icon with white background
                                 Positioned(
                                   bottom: 10,
                                   right: 10,
