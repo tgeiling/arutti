@@ -36,7 +36,7 @@ class _StartPageState extends State<StartPage> {
     await prefs.setStringList('images', _imagePaths);
   }
 
-  // Pick images from gallery
+  // Pick images from gallery and upload immediately
   Future<void> _pickImages() async {
     final ImagePicker picker = ImagePicker();
     final List<XFile>? pickedFiles = await picker.pickMultiImage();
@@ -45,13 +45,16 @@ class _StartPageState extends State<StartPage> {
         _imagePaths.addAll(pickedFiles.map((file) => file.path).toList());
       });
       _saveImages(); // Save to SharedPreferences
+
+      // Automatically upload images after selection
+      await _saveModelSetcard();
     }
   }
 
   // Send model setcard data to the server
   Future<void> _saveModelSetcard() async {
     // Replace with your server URL
-    const String serverUrl = 'http://<INSTANCE_IP>:3000/api/setcards';
+    const String serverUrl = 'http://http://34.32.196.56:3000/api/setcards';
 
     // Prepare the request body
     List<String> photoPaths = _imagePaths.map((path) => path).toList();
@@ -138,11 +141,6 @@ class _StartPageState extends State<StartPage> {
                   )
                 : Column(
                     children: [
-                      SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: _saveModelSetcard,
-                        child: Text("Save Setcard to DB"),
-                      ),
                       SizedBox(height: 10),
                       Expanded(
                         child: GridView.builder(
