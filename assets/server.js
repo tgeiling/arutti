@@ -42,40 +42,61 @@ const setcardSchema = new mongoose.Schema({
 // Create the Setcard Model (collection name: Models)
 const Setcard = mongoose.model('Setcard', setcardSchema, 'Models');
 
-// Endpoint to retrieve all model setcards
+// Middleware to authenticate JWT token
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ message: 'Access denied: No token provided' });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: 'Invalid or expired token' });
+    req.user = user; // Add user information to the request
+    next();
+  });
+}
+
+// Test endpoint to check server accessibility
+app.get('/api/test', (req, res) => {
+  console.log("Test endpoint hit!");
+  res.status(200).json({ message: "Test endpoint reached successfully!" });
+});
+
+// Endpoint to retrieve all model setcards (public access)
 app.get('/api/setcards', async (req, res) => {
-    try {
-        const setcards = await Setcard.find();
-        res.json(setcards);
-    } catch (error) {
-        res.status(500).json({ message: 'Error retrieving setcards', error });
-    }
+  try {
+      const setcards = await Setcard.find();
+      res.json(setcards);
+  } catch (error) {
+      res.status(500).json({ message: 'Error retrieving setcards', error });
+  }
 });
 
-// Endpoint to save a new model setcard
-app.post('/api/setcards', async (req, res) => {
-    const { name, age, height, measurements, photos } = req.body;
+// Endpoint to save a new model setcard (requires valid JWT token)
+app.post('/api/setcards', authenticateToken, async (req, res) => {
+  console.log("Processing setcard save request");
+  const { name, age, height, measurements, photos } = req.body;
 
-    const newSetcard = new Setcard({
-        name,
-        age,
-        height,
-        measurements,
-        photos
-    });
+  const newSetcard = new Setcard({
+      name,
+      age,
+      height,
+      measurements,
+      photos
+  });
 
-    try {
-        const savedSetcard = await newSetcard.save();
-        res.status(201).json(savedSetcard);
-    } catch (error) {
-        res.status(500).json({ message: 'Error saving setcard', error });
-    }
+  try {
+      const savedSetcard = await newSetcard.save();
+      res.status(201).json(savedSetcard);
+  } catch (error) {
+      res.status(500).json({ message: 'Error saving setcard', error });
+  }
 });
 
-// Endpoint to generate guest token
+// Endpoint to generate a guest token (public access)
 app.post('/guestnode', (req, res) => {
   try {
-    const guestToken = jwt.sign({ guest: true }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Guest token valid for 7 days
+    const guestToken = jwt.sign({ guest: true }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ accessToken: guestToken });
   } catch (error) {
     console.error('Error generating guest token:', error);
@@ -85,5 +106,5 @@ app.post('/guestnode', (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

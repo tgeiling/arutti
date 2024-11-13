@@ -88,20 +88,20 @@ class _MyHomePageState extends State<MyHomePage> {
       items: [
         SalomonBottomBarItem(
           icon: Icon(
-            CupertinoIcons.home,
+            CupertinoIcons.camera,
             size: MediaQuery.of(context).size.width * 0.08,
             color: Colors.white,
           ),
-          title: const Text("Play"),
+          title: const Text("Setcard"),
           selectedColor: Colors.white,
         ),
         SalomonBottomBarItem(
           icon: Icon(
-            CupertinoIcons.wand_stars_inverse,
+            CupertinoIcons.calendar_today,
             size: MediaQuery.of(context).size.width * 0.08,
             color: Colors.white,
           ),
-          title: const Text("Level"),
+          title: const Text("Events"),
           selectedColor: Colors.white,
         ),
       ],

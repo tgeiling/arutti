@@ -54,7 +54,7 @@ class _StartPageState extends State<StartPage> {
   // Send model setcard data to the server
   Future<void> _saveModelSetcard() async {
     // Replace with your server URL
-    const String serverUrl = 'http://http://34.32.196.56:3000/api/setcards';
+    const String serverUrl = 'http://35.204.22.68:3000/api/setcards';
 
     // Prepare the request body
     List<String> photoPaths = _imagePaths.map((path) => path).toList();
@@ -75,6 +75,8 @@ class _StartPageState extends State<StartPage> {
         Uri.parse(serverUrl),
         headers: {
           "Content-Type": "application/json",
+          "Authorization":
+              "Bearer 7ea4fd59f6eaa8850fbd8ab5bc964e018a1b376257bcd10d72fa7b54e2281986",
         },
         body: jsonEncode(data),
       );
