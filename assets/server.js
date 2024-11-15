@@ -6,6 +6,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 // Create express app
 const app = express();
@@ -15,6 +18,7 @@ app.use(express.json());
 app.use(helmet());
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/models', express.static(path.join(__dirname, 'models')));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
@@ -41,16 +45,20 @@ const setcardSchema = new mongoose.Schema({
 
 const Setcard = mongoose.model('Setcard', setcardSchema, 'Models');
 
-// User Schema and Model for Authentication
-const UserSchema = new mongoose.Schema({
-  username: { type: String, unique: true },
-  password: String,
-  winStreak: { type: Number, default: 0 },
-  exp: { type: Number, default: 0 },
-  completedLevels: { type: Number, default: 0 },
+// Configure Multer for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'models');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir);
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
 });
-
-const User = mongoose.model('User', UserSchema);
+const upload = multer({ storage });
 
 // Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
@@ -66,77 +74,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Test Endpoint
-app.get('/api/test', (req, res) => {
-  console.log("Test endpoint hit!");
-  res.status(200).json({ message: "Test endpoint reached successfully!" });
-});
-
-// Register Endpoint
-app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Username already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username, password: hashedPassword });
-    await user.save();
-
-    res.status(201).json({ message: 'User registered successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
-  }
-});
-
-// Login Endpoint
-app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-
-  try {
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(400).json({ message: 'User not found' });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
-  }
-});
-
-// Validate Token Endpoint
-app.post('/api/validateToken', (req, res) => {
-  const token = req.body.token;
-  if (!token) return res.status(400).json({ message: 'Token required' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    res.json({ isValid: true, decoded });
-  } catch (err) {
-    res.status(401).json({ isValid: false, message: 'Invalid or expired token' });
-  }
-});
-
-// Guest Token Generation Endpoint
-app.post('/api/guestnode', (req, res) => {
-  try {
-    const guestToken = jwt.sign({ guest: true }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ accessToken: guestToken });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // Endpoint to retrieve all model setcards (public access)
 app.get('/api/setcards', async (req, res) => {
   try {
@@ -147,22 +84,30 @@ app.get('/api/setcards', async (req, res) => {
   }
 });
 
-// Endpoint to save a new model setcard (requires valid JWT token)
-app.post('/api/setcards', authenticateToken, async (req, res) => {
-  const { name, age, height, measurements, photos } = req.body;
+// Endpoint to save a new model setcard with image uploads (requires valid JWT token)
+app.post('/api/setcards', authenticateToken, upload.array('photos'), async (req, res) => {
+  const { name, age, height, measurements } = req.body;
+  
+  // Collect paths of uploaded photos
+  const photoPaths = req.files.map(file => `/models/${file.filename}`);
 
   const newSetcard = new Setcard({
     name,
-    age,
-    height,
-    measurements,
-    photos,
+    age: Number(age),
+    height: Number(height),
+    measurements: {
+      chest: Number(measurements.chest),
+      waist: Number(measurements.waist),
+      hips: Number(measurements.hips),
+    },
+    photos: photoPaths,
   });
 
   try {
     const savedSetcard = await newSetcard.save();
     res.status(201).json(savedSetcard);
   } catch (error) {
+    console.error('Error saving setcard:', error);
     res.status(500).json({ message: 'Error saving setcard', error });
   }
 });

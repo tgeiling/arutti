@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
+
+import 'provider.dart';
 
 class StartPage extends StatefulWidget {
   @override
@@ -48,57 +51,78 @@ class _StartPageState extends State<StartPage> {
       _saveImages(); // Save to SharedPreferences
 
       // Automatically upload images after selection
-      await _saveModelSetcard();
+      await _saveModelSetcard(context);
     }
   }
 
   final storage = FlutterSecureStorage();
 
-  Future<void> _saveModelSetcard() async {
-    // Replace with your server URL
+  Future<void> _saveModelSetcard(BuildContext context) async {
     const String serverUrl = 'http://35.204.22.68:3000/api/setcards';
 
-    // Prepare the request body
-    List<String> photoPaths = _imagePaths.map((path) => path).toList();
-    Map<String, dynamic> data = {
-      "name": "Model Name", // Replace with dynamic data if needed
-      "age": 25, // Replace with dynamic data if needed
-      "height": 170, // Replace with dynamic data if needed
-      "measurements": {
-        "chest": 90, // Replace with dynamic data if needed
-        "waist": 60, // Replace with dynamic data if needed
-        "hips": 90 // Replace with dynamic data if needed
-      },
-      "photos": photoPaths,
-    };
+    // Access the UserDataProvider to retrieve questionnaire data
+    final userDataProvider =
+        Provider.of<UserDataProvider>(context, listen: false);
 
     try {
       // Retrieve the token from secure storage
       final token = await storage.read(key: 'authToken');
-
       if (token == null) {
         print("No token found. Please authenticate first.");
         return;
       }
 
-      final response = await http.post(
-        Uri.parse(serverUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode(data),
-      );
+      // Prepare the multipart request
+      final request = http.MultipartRequest('POST', Uri.parse(serverUrl))
+        ..headers['Authorization'] = 'Bearer $token';
 
+      // Add text fields to the request
+      request.fields['name'] =
+          userDataProvider.firstName + " " + userDataProvider.surname;
+      request.fields['telephone'] = userDataProvider.telephone;
+      request.fields['email'] = userDataProvider.email;
+
+      // Add measurement fields, sending 0 if any field is missing or invalid
+      request.fields['chest'] = (userDataProvider.chest > 0)
+          ? userDataProvider.chest.toString()
+          : '0';
+      request.fields['waist'] = (userDataProvider.waist > 0)
+          ? userDataProvider.waist.toString()
+          : '0';
+      request.fields['hips'] =
+          (userDataProvider.hips > 0) ? userDataProvider.hips.toString() : '0';
+
+      // Attach each image file
+      for (String imagePath in _imagePaths) {
+        request.files
+            .add(await http.MultipartFile.fromPath('photos', imagePath));
+      }
+
+      // Send the request
+      final response = await request.send();
+
+      // Check the response status
       if (response.statusCode == 201) {
         print("Setcard saved successfully.");
       } else {
-        print(
-            "Failed to save setcard: ${response.statusCode}, ${response.body}");
+        print("Failed to save setcard: ${response.statusCode}");
+        print(await response.stream.bytesToString());
       }
     } catch (e) {
       print("Error saving setcard: $e");
     }
+  }
+
+// Utility function to calculate age based on birth date
+  int _calculateAge(DateTime? birthDate) {
+    if (birthDate == null) return 0;
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (now.month < birthDate.month ||
+        (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+    return age;
   }
 
   // Delete image from the list

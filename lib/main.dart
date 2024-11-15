@@ -1,15 +1,17 @@
 import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'provider.dart';
 import 'start.dart';
 import 'events.dart';
 import 'auth.dart';
+import 'questionnaire.dart';
+import 'models.dart'; // Import the ModelPage
 
 void main() {
   runApp(
@@ -26,7 +28,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Arutti App',
+      title: 'Arutti',
       theme: ThemeData(
         primarySwatch: Colors.grey,
       ),
@@ -49,6 +51,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   bool? _loggedIn;
   bool _isConnected = true;
   bool _isLoading = true;
+  bool _questionnaireDone = false;
 
   final AuthService _authService = AuthService();
   late Connectivity _connectivity;
@@ -58,6 +61,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _checkAuthentication();
+    _checkQuestionnaireCompletion();
     WidgetsBinding.instance.addObserver(this);
 
     // Initialize connectivity
@@ -133,8 +137,37 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _checkQuestionnaireCompletion() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _questionnaireDone = prefs.getBool('questionnaireDone') ?? false;
+    });
+  }
+
+  Future<void> _setQuestionnaireDone() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('questionnaireDone', true);
+    setState(() {
+      _questionnaireDone = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Show questionnaire screen if not completed
+    if (!_questionnaireDone) {
+      return QuestionnaireScreen(onComplete: _setQuestionnaireDone);
+    }
+
+    // Main app interface
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -157,6 +190,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         children: [
           Center(child: StartPage()),
           Center(child: EventsPage()),
+          Center(child: ModelPage()),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -195,6 +229,15 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             color: Colors.white,
           ),
           title: const Text("Events"),
+          selectedColor: Colors.white,
+        ),
+        SalomonBottomBarItem(
+          icon: Icon(
+            CupertinoIcons.person_3,
+            size: MediaQuery.of(context).size.width * 0.08,
+            color: Colors.white,
+          ),
+          title: const Text("Models"),
           selectedColor: Colors.white,
         ),
       ],
