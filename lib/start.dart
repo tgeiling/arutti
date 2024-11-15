@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 
 class StartPage extends StatefulWidget {
@@ -51,7 +52,8 @@ class _StartPageState extends State<StartPage> {
     }
   }
 
-  // Send model setcard data to the server
+  final storage = FlutterSecureStorage();
+
   Future<void> _saveModelSetcard() async {
     // Replace with your server URL
     const String serverUrl = 'http://35.204.22.68:3000/api/setcards';
@@ -71,12 +73,19 @@ class _StartPageState extends State<StartPage> {
     };
 
     try {
+      // Retrieve the token from secure storage
+      final token = await storage.read(key: 'authToken');
+
+      if (token == null) {
+        print("No token found. Please authenticate first.");
+        return;
+      }
+
       final response = await http.post(
         Uri.parse(serverUrl),
         headers: {
           "Content-Type": "application/json",
-          "Authorization":
-              "Bearer 7ea4fd59f6eaa8850fbd8ab5bc964e018a1b376257bcd10d72fa7b54e2281986",
+          "Authorization": "Bearer $token",
         },
         body: jsonEncode(data),
       );
@@ -84,7 +93,8 @@ class _StartPageState extends State<StartPage> {
       if (response.statusCode == 201) {
         print("Setcard saved successfully.");
       } else {
-        print("Failed to save setcard: ${response.statusCode}");
+        print(
+            "Failed to save setcard: ${response.statusCode}, ${response.body}");
       }
     } catch (e) {
       print("Error saving setcard: $e");

@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'provider.dart';
 import 'start.dart';
 import 'events.dart';
+import 'auth.dart';
 
 void main() {
   runApp(
@@ -22,7 +26,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Salomon Bottom Bar Example',
+      title: 'Arutti App',
       theme: ThemeData(
         primarySwatch: Colors.grey,
       ),
@@ -36,9 +40,98 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+
+  // Connectivity and Authentication State
+  bool? _authenticated;
+  bool? _loggedIn;
+  bool _isConnected = true;
+  bool _isLoading = true;
+
+  final AuthService _authService = AuthService();
+  late Connectivity _connectivity;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthentication();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Initialize connectivity
+    _connectivity = Connectivity();
+    _connectivitySubscription = _connectivity.onConnectivityChanged
+        .listen((List<ConnectivityResult> result) {
+      _updateConnectionStatus(result);
+    });
+    _checkInitialConnectivity();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Connectivity and Authentication Functions
+  void _updateConnectionStatus(List<ConnectivityResult> results) {
+    setState(() {
+      _isConnected = !results.contains(ConnectivityResult.none);
+    });
+  }
+
+  Future<void> _checkInitialConnectivity() async {
+    List<ConnectivityResult> results = await _connectivity.checkConnectivity();
+    _updateConnectionStatus(results);
+  }
+
+  Future<void> _checkAuthentication() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    bool isGuest = await _authService.isGuestToken();
+    bool tokenExpired = await _authService.isTokenExpired();
+
+    if (!isGuest) {
+      setState(() {
+        _setAuthenticated(true);
+        print("User is logged in.");
+      });
+
+      if (tokenExpired) {
+        setState(() {
+          _setAuthenticated(false);
+          print("Token expired.");
+        });
+      }
+    } else {
+      await _authService.setGuestToken();
+      setState(() {
+        _setAuthenticated(false);
+        print("Guest token set.");
+      });
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  void _setAuthenticated(bool authenticated) {
+    setState(() => _authenticated = authenticated);
+    _setLoggedIn(authenticated);
+  }
+
+  void _setLoggedIn(bool loggedIn) {
+    setState(() {
+      _loggedIn = loggedIn;
+      print("Logged in state updated: $loggedIn");
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ],
         ),
-        backgroundColor: Colors.white, // Customize the AppBar background color
+        backgroundColor: Colors.white,
       ),
       body: PageView(
         controller: _pageController,
