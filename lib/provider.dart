@@ -6,6 +6,8 @@ class UserDataProvider with ChangeNotifier {
   String _surname = "";
   String _telephone = "";
   String _email = "";
+  int _age = 0;
+  int _height = 0;
   int _chest = 0;
   int _waist = 0;
   int _hips = 0;
@@ -15,6 +17,8 @@ class UserDataProvider with ChangeNotifier {
   String get surname => _surname;
   String get telephone => _telephone;
   String get email => _email;
+  int get age => _age;
+  int get height => _height;
   int get chest => _chest;
   int get waist => _waist;
   int get hips => _hips;
@@ -48,6 +52,18 @@ class UserDataProvider with ChangeNotifier {
     savePreferences();
   }
 
+  void setAge(int age) {
+    _age = age;
+    notifyListeners();
+    savePreferences();
+  }
+
+  void setHeight(int height) {
+    _height = height;
+    notifyListeners();
+    savePreferences();
+  }
+
   void setChest(int chest) {
     _chest = chest;
     notifyListeners();
@@ -73,6 +89,8 @@ class UserDataProvider with ChangeNotifier {
     _surname = prefs.getString('surname') ?? "";
     _telephone = prefs.getString('telephone') ?? "";
     _email = prefs.getString('email') ?? "";
+    _age = prefs.getInt('age') ?? 0;
+    _height = prefs.getInt('height') ?? 0;
     _chest = prefs.getInt('chest') ?? 0;
     _waist = prefs.getInt('waist') ?? 0;
     _hips = prefs.getInt('hips') ?? 0;
@@ -86,6 +104,8 @@ class UserDataProvider with ChangeNotifier {
     await prefs.setString('surname', _surname);
     await prefs.setString('telephone', _telephone);
     await prefs.setString('email', _email);
+    await prefs.setInt('age', _age);
+    await prefs.setInt('height', _height);
     await prefs.setInt('chest', _chest);
     await prefs.setInt('waist', _waist);
     await prefs.setInt('hips', _hips);

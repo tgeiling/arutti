@@ -60,53 +60,50 @@ class _StartPageState extends State<StartPage> {
   Future<void> _saveModelSetcard(BuildContext context) async {
     const String serverUrl = 'http://35.204.22.68:3000/api/setcards';
 
-    // Access the UserDataProvider to retrieve questionnaire data
     final userDataProvider =
         Provider.of<UserDataProvider>(context, listen: false);
 
     try {
-      // Retrieve the token from secure storage
       final token = await storage.read(key: 'authToken');
       if (token == null) {
         print("No token found. Please authenticate first.");
         return;
       }
 
-      // Prepare the multipart request
-      final request = http.MultipartRequest('POST', Uri.parse(serverUrl))
-        ..headers['Authorization'] = 'Bearer $token';
-
-      // Add text fields to the request
-      request.fields['name'] =
-          userDataProvider.firstName + " " + userDataProvider.surname;
-      request.fields['telephone'] = userDataProvider.telephone;
-      request.fields['email'] = userDataProvider.email;
-
-      // Add measurement fields, sending 0 if any field is missing or invalid
-      request.fields['chest'] = (userDataProvider.chest > 0)
-          ? userDataProvider.chest.toString()
-          : '0';
-      request.fields['waist'] = (userDataProvider.waist > 0)
-          ? userDataProvider.waist.toString()
-          : '0';
-      request.fields['hips'] =
-          (userDataProvider.hips > 0) ? userDataProvider.hips.toString() : '0';
-
-      // Attach each image file
+      // Encode images as Base64
+      List<String> photoBase64List = [];
       for (String imagePath in _imagePaths) {
-        request.files
-            .add(await http.MultipartFile.fromPath('photos', imagePath));
+        final bytes = await File(imagePath).readAsBytes();
+        photoBase64List.add(base64Encode(bytes));
       }
 
-      // Send the request
-      final response = await request.send();
+      // Prepare data
+      final data = {
+        "name": "${userDataProvider.firstName} ${userDataProvider.surname}",
+        "age": userDataProvider.age,
+        "height": userDataProvider.height,
+        "measurements": {
+          "chest": userDataProvider.chest,
+          "waist": userDataProvider.waist,
+          "hips": userDataProvider.hips,
+        },
+        "photos": photoBase64List,
+      };
 
-      // Check the response status
+      final response = await http.post(
+        Uri.parse(serverUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode(data),
+      );
+
       if (response.statusCode == 201) {
         print("Setcard saved successfully.");
       } else {
         print("Failed to save setcard: ${response.statusCode}");
-        print(await response.stream.bytesToString());
+        print(response.body);
       }
     } catch (e) {
       print("Error saving setcard: $e");
@@ -175,58 +172,62 @@ class _StartPageState extends State<StartPage> {
                       ),
                     ),
                   )
-                : Column(
-                    children: [
-                      SizedBox(height: 10),
-                      Expanded(
-                        child: GridView.builder(
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 0.75,
-                          ),
-                          itemCount: _imagePaths.length,
-                          itemBuilder: (context, index) {
-                            return Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.file(
-                                    File(_imagePaths[index]),
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
+                : Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Column(
+                      children: [
+                        SizedBox(height: 10),
+                        Expanded(
+                          child: GridView.builder(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 0.75,
+                            ),
+                            itemCount: _imagePaths.length,
+                            itemBuilder: (context, index) {
+                              return Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      File(_imagePaths[index]),
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
                                   ),
-                                ),
-                                Positioned(
-                                  bottom: 10,
-                                  right: 10,
-                                  child: GestureDetector(
-                                    onTap: () => _deleteImage(index),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.8),
-                                        shape: BoxShape.rectangle,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      padding: EdgeInsets.all(8),
-                                      child: Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
+                                  Positioned(
+                                    bottom: 10,
+                                    right: 10,
+                                    child: GestureDetector(
+                                      onTap: () => _deleteImage(index),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.8),
+                                          shape: BoxShape.rectangle,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        padding: EdgeInsets.all(8),
+                                        child: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            );
-                          },
+                                ],
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-          ),
+          )
         ],
       ),
     );

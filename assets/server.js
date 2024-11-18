@@ -5,20 +5,15 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const helmet = require('helmet');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
 // Create express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Allow larger payloads for Base64 images
 app.use(helmet());
 app.use(cors());
-app.use(bodyParser.json());
-app.use('/models', express.static(path.join(__dirname, 'models')));
+app.use(bodyParser.json({ limit: '10mb' }));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
@@ -40,25 +35,10 @@ const setcardSchema = new mongoose.Schema({
     waist: Number,
     hips: Number,
   },
-  photos: [String],
+  photos: [String], // Store Base64 encoded images directly
 });
 
 const Setcard = mongoose.model('Setcard', setcardSchema, 'Models');
-
-// Configure Multer for image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, 'models');
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir);
-    }
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
-const upload = multer({ storage });
 
 // Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
@@ -74,6 +54,19 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// Validate Token Endpoint
+app.post('/api/validateToken', (req, res) => {
+  const token = req.body.token;
+  if (!token) return res.status(400).json({ message: 'Token required' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({ isValid: true, decoded });
+  } catch (err) {
+    res.status(401).json({ isValid: false, message: 'Invalid or expired token' });
+  }
+});
+
 // Endpoint to retrieve all model setcards (public access)
 app.get('/api/setcards', async (req, res) => {
   try {
@@ -84,23 +77,24 @@ app.get('/api/setcards', async (req, res) => {
   }
 });
 
-// Endpoint to save a new model setcard with image uploads (requires valid JWT token)
-app.post('/api/setcards', authenticateToken, upload.array('photos'), async (req, res) => {
-  const { name, age, height, measurements } = req.body;
-  
-  // Collect paths of uploaded photos
-  const photoPaths = req.files.map(file => `/models/${file.filename}`);
+// Endpoint to save a new model setcard (requires valid JWT token)
+app.post('/api/setcards', authenticateToken, async (req, res) => {
+  const { name, age, height, measurements = {}, photos = [] } = req.body;
 
+  // Safely handle measurements or set defaults
+  const measurementsObj = {
+    chest: Number(measurements.chest || 0),
+    waist: Number(measurements.waist || 0),
+    hips: Number(measurements.hips || 0),
+  };
+
+  // Save Base64 images directly in the photos array
   const newSetcard = new Setcard({
     name,
-    age: Number(age),
-    height: Number(height),
-    measurements: {
-      chest: Number(measurements.chest),
-      waist: Number(measurements.waist),
-      hips: Number(measurements.hips),
-    },
-    photos: photoPaths,
+    age: Number(age) || 0,
+    height: Number(height) || 0,
+    measurements: measurementsObj,
+    photos, // Store Base64 encoded images
   });
 
   try {

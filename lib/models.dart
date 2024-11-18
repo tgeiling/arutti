@@ -66,7 +66,7 @@ class _ModelPageState extends State<ModelPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "${model['name'] ?? 'Unknown Name'}",
+                            "${model['name'] ?? 'Anonym'}",
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
