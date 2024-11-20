@@ -10,10 +10,11 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '10mb' })); // Allow larger payloads for Base64 images
+// Middleware setup
+app.use(express.json({ limit: '10mb' })); // Increased payload size for Base64
 app.use(helmet());
 app.use(cors());
-app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.json({ limit: '10mb' })); // Body parser for larger payloads
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
@@ -35,7 +36,7 @@ const setcardSchema = new mongoose.Schema({
     waist: Number,
     hips: Number,
   },
-  photos: [String], // Store Base64 encoded images directly
+  photos: [String], // Array of Base64 encoded images
 });
 
 const Setcard = mongoose.model('Setcard', setcardSchema, 'Models');
@@ -73,11 +74,12 @@ app.get('/api/setcards', async (req, res) => {
     const setcards = await Setcard.find();
     res.json(setcards);
   } catch (error) {
+    console.error('Error retrieving setcards:', error);
     res.status(500).json({ message: 'Error retrieving setcards', error });
   }
 });
 
-// Endpoint to save a new model setcard (requires valid JWT token)
+// Endpoint to save a new model setcard with Base64 images (requires valid JWT token)
 app.post('/api/setcards', authenticateToken, async (req, res) => {
   const { name, age, height, measurements = {}, photos = [] } = req.body;
 
@@ -88,13 +90,15 @@ app.post('/api/setcards', authenticateToken, async (req, res) => {
     hips: Number(measurements.hips || 0),
   };
 
-  // Save Base64 images directly in the photos array
+  // Validate photos are Base64 strings
+  const validPhotos = photos.filter(photo => typeof photo === 'string' && photo.startsWith('data:image'));
+
   const newSetcard = new Setcard({
     name,
     age: Number(age) || 0,
     height: Number(height) || 0,
     measurements: measurementsObj,
-    photos, // Store Base64 encoded images
+    photos: validPhotos, // Store only valid Base64 images
   });
 
   try {

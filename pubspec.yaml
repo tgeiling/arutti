@@ -27,6 +27,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/logo.jpg
+    - assets/layouts/1.png
+    - assets/layouts/2.png
+    - assets/layouts/3.png
 
   fonts:
     - family: Fahkwang

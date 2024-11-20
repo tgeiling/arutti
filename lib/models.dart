@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class ModelPage extends StatefulWidget {
   @override
@@ -8,7 +8,7 @@ class ModelPage extends StatefulWidget {
 }
 
 class _ModelPageState extends State<ModelPage> {
-  List<Map<String, dynamic>> _models = [];
+  List<Map<String, dynamic>> models = [];
 
   @override
   void initState() {
@@ -25,7 +25,7 @@ class _ModelPageState extends State<ModelPage> {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
-          _models = data.map<Map<String, dynamic>>((model) => model).toList();
+          models = data.map<Map<String, dynamic>>((model) => model).toList();
         });
       } else {
         print("Failed to load setcards: ${response.statusCode}");
@@ -35,23 +35,18 @@ class _ModelPageState extends State<ModelPage> {
     }
   }
 
-  String _getImageUrl(String imagePath) {
-    // Construct the URL to access images on the server
-    return 'http://35.204.22.68:3000/$imagePath';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Models'),
       ),
-      body: _models.isEmpty
+      body: models.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
-              itemCount: _models.length,
+              itemCount: models.length,
               itemBuilder: (context, index) {
-                final model = _models[index];
+                final model = models[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(
                       vertical: 8.0, horizontal: 16.0),
@@ -66,10 +61,28 @@ class _ModelPageState extends State<ModelPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "${model['name'] ?? 'Anonym'}",
+                            "${model['name'] ?? 'Unknown Name'}",
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Age: ${model['age'] ?? 'N/A'}, Height: ${model['height'] ?? 'N/A'}",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Measurements: Chest: ${model['measurements']['chest'] ?? '0'}, "
+                            "Waist: ${model['measurements']['waist'] ?? '0'}, "
+                            "Hips: ${model['measurements']['hips'] ?? '0'}",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -79,20 +92,25 @@ class _ModelPageState extends State<ModelPage> {
                               scrollDirection: Axis.horizontal,
                               itemCount: model['photos'].length,
                               itemBuilder: (context, photoIndex) {
+                                final base64Image = model['photos'][photoIndex];
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(8.0),
-                                    child: Image.network(
-                                      _getImageUrl(model['photos'][photoIndex]),
-                                      height: 100,
-                                      width: 100,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Icon(Icons.broken_image,
-                                                  size: 100),
-                                    ),
+                                    child: base64Image != null
+                                        ? Image.memory(
+                                            base64Decode(
+                                                base64Image.split(',')[1]),
+                                            height: 100,
+                                            width: 100,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error,
+                                                    stackTrace) =>
+                                                const Icon(Icons.broken_image,
+                                                    size: 100),
+                                          )
+                                        : const Icon(Icons.broken_image,
+                                            size: 100),
                                   ),
                                 );
                               },

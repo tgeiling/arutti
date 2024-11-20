@@ -1,13 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'dart:convert';
-
-import 'provider.dart';
 
 class StartPage extends StatefulWidget {
   @override
@@ -15,221 +8,208 @@ class StartPage extends StatefulWidget {
 }
 
 class _StartPageState extends State<StartPage> {
-  List<String> _imagePaths = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadImages();
-  }
-
-  // Load saved image paths from SharedPreferences
-  Future<void> _loadImages() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? savedImages = prefs.getStringList('images');
-    if (savedImages != null) {
-      setState(() {
-        _imagePaths = savedImages;
-      });
-    }
-  }
-
-  // Save image paths to SharedPreferences
-  Future<void> _saveImages() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('images', _imagePaths);
-  }
-
-  // Pick images from gallery and upload immediately
-  Future<void> _pickImages() async {
-    final ImagePicker picker = ImagePicker();
-    final List<XFile>? pickedFiles = await picker.pickMultiImage();
-    if (pickedFiles != null && pickedFiles.isNotEmpty) {
-      setState(() {
-        _imagePaths.addAll(pickedFiles.map((file) => file.path).toList());
-      });
-      _saveImages(); // Save to SharedPreferences
-
-      // Automatically upload images after selection
-      await _saveModelSetcard(context);
-    }
-  }
-
-  final storage = FlutterSecureStorage();
-
-  Future<void> _saveModelSetcard(BuildContext context) async {
-    const String serverUrl = 'http://35.204.22.68:3000/api/setcards';
-
-    final userDataProvider =
-        Provider.of<UserDataProvider>(context, listen: false);
-
-    try {
-      final token = await storage.read(key: 'authToken');
-      if (token == null) {
-        print("No token found. Please authenticate first.");
-        return;
-      }
-
-      // Encode images as Base64
-      List<String> photoBase64List = [];
-      for (String imagePath in _imagePaths) {
-        final bytes = await File(imagePath).readAsBytes();
-        photoBase64List.add(base64Encode(bytes));
-      }
-
-      // Prepare data
-      final data = {
-        "name": "${userDataProvider.firstName} ${userDataProvider.surname}",
-        "age": userDataProvider.age,
-        "height": userDataProvider.height,
-        "measurements": {
-          "chest": userDataProvider.chest,
-          "waist": userDataProvider.waist,
-          "hips": userDataProvider.hips,
-        },
-        "photos": photoBase64List,
-      };
-
-      final response = await http.post(
-        Uri.parse(serverUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode(data),
-      );
-
-      if (response.statusCode == 201) {
-        print("Setcard saved successfully.");
-      } else {
-        print("Failed to save setcard: ${response.statusCode}");
-        print(response.body);
-      }
-    } catch (e) {
-      print("Error saving setcard: $e");
-    }
-  }
-
-// Utility function to calculate age based on birth date
-  int _calculateAge(DateTime? birthDate) {
-    if (birthDate == null) return 0;
-    final now = DateTime.now();
-    int age = now.year - birthDate.year;
-    if (now.month < birthDate.month ||
-        (now.month == birthDate.month && now.day < birthDate.day)) {
-      age--;
-    }
-    return age;
-  }
-
-  // Delete image from the list
-  void _deleteImage(int index) {
-    setState(() {
-      _imagePaths.removeAt(index);
-    });
-    _saveImages();
-  }
+  final List<String> layouts = [
+    'assets/layouts/1.png',
+    'assets/layouts/2.png',
+    'assets/layouts/3.png',
+  ];
+  int _selectedLayoutIndex = -1; // No layout selected by default
+  List<String> _slotImages = []; // Tracks images for the slots
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        children: [
-          if (_imagePaths.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      "Deine Setcard ist hochgeladen \n bearbeite sie nach belieben",
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: _pickImages,
-                      child: Icon(Icons.add, size: 50),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          Expanded(
-            child: _imagePaths.isEmpty
-                ? Center(
-                    child: GestureDetector(
-                      onTap: _pickImages,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, size: 100),
-                          SizedBox(height: 20),
-                          Text("Erstelle deine Setcard",
-                              style: TextStyle(fontSize: 18)),
-                        ],
+    return Scaffold(
+      appBar: AppBar(title: const Text("Setcard erstellen")),
+      body: Center(
+        child: Column(
+          children: [
+            // Main View with Layout Preview and Slots
+            Expanded(
+              child: _selectedLayoutIndex == -1
+                  ? Center(
+                      child: ElevatedButton(
+                        onPressed: () => _showLayoutSelectionDialog(context),
+                        child: const Text("Setcard erstellen"),
                       ),
-                    ),
-                  )
-                : Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Column(
+                    )
+                  : Column(
                       children: [
-                        SizedBox(height: 10),
+                        // Display Selected Layout
                         Expanded(
-                          child: GridView.builder(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: 0.75,
-                            ),
-                            itemCount: _imagePaths.length,
-                            itemBuilder: (context, index) {
-                              return Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      File(_imagePaths[index]),
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 10,
-                                    right: 10,
-                                    child: GestureDetector(
-                                      onTap: () => _deleteImage(index),
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.8),
-                                          shape: BoxShape.rectangle,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        padding: EdgeInsets.all(8),
-                                        child: Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
+                          child: Stack(
+                            children: [
+                              Image.asset(
+                                layouts[_selectedLayoutIndex],
+                                fit: BoxFit.contain,
+                                width: double.infinity,
+                              ),
+                              // Overlay slots dynamically
+                              _buildSlotOverlay(),
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () => _saveSetcard(),
+                          child: const Text("Save Setcard"),
                         ),
                       ],
                     ),
-                  ),
-          )
-        ],
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  // Dialog for Selecting a Layout
+  Future<void> _showLayoutSelectionDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: SizedBox(
+            height: 300,
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    "Select a Layout",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: layouts.length,
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedLayoutIndex = index;
+                            _initializeSlots();
+                          });
+                          Navigator.pop(context);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Image.asset(layouts[index]),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Initialize Slot Images for Selected Layout
+  void _initializeSlots() {
+    final slotCounts = [3, 5, 8]; // Number of slots per layout
+    _slotImages = List.generate(slotCounts[_selectedLayoutIndex], (_) => "");
+  }
+
+  // Build Slot Overlay for the Layout
+  Widget _buildSlotOverlay() {
+    final slotCounts = [3, 5, 8]; // Number of slots per layout
+    final slotPositions = [
+      // Positions for slots (percentages of the layout image)
+      [
+        Offset(0.2, 0.3),
+        Offset(0.5, 0.3),
+        Offset(0.8, 0.3),
+      ],
+      [
+        Offset(0.2, 0.2),
+        Offset(0.5, 0.2),
+        Offset(0.8, 0.2),
+        Offset(0.35, 0.6),
+        Offset(0.65, 0.6),
+      ],
+      [
+        Offset(0.1, 0.1),
+        Offset(0.4, 0.1),
+        Offset(0.7, 0.1),
+        Offset(0.2, 0.4),
+        Offset(0.5, 0.4),
+        Offset(0.8, 0.4),
+        Offset(0.35, 0.7),
+        Offset(0.65, 0.7),
+      ],
+    ];
+
+    final positions = slotPositions[_selectedLayoutIndex];
+    return Stack(
+      children: positions.asMap().entries.map((entry) {
+        final index = entry.key;
+        final position = entry.value;
+        final slotImage = _slotImages[index];
+        return Positioned(
+          left: position.dx * MediaQuery.of(context).size.width,
+          top: position.dy * MediaQuery.of(context).size.height,
+          child: GestureDetector(
+            onTap: () => _addImageToSlot(index),
+            child: Stack(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.white,
+                  ),
+                  child: slotImage.isEmpty
+                      ? const Icon(Icons.add_photo_alternate, size: 40)
+                      : Image.file(
+                          File(slotImage),
+                          fit: BoxFit.cover,
+                        ),
+                ),
+                if (slotImage.isNotEmpty)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () => _removeImageFromSlot(index),
+                      child: const Icon(Icons.cancel, color: Colors.red),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // Add Image to Slot
+  Future<void> _addImageToSlot(int index) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? pickedFile =
+        await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _slotImages[index] = pickedFile.path;
+      });
+    }
+  }
+
+  // Remove Image from Slot
+  void _removeImageFromSlot(int index) {
+    setState(() {
+      _slotImages[index] = "";
+    });
+  }
+
+  // Save Setcard (Placeholder for backend integration)
+  void _saveSetcard() {
+    print("Saving Setcard with Layout: $_selectedLayoutIndex");
+    print("Slot Images: $_slotImages");
   }
 }
